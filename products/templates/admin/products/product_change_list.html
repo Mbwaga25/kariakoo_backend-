@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="import-products/" class="import-link">
+            <i class="icon-upload"></i> Import Products
+        </a>
+    </li>
+{% endblock %}

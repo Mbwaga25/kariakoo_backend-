@@ -1,0 +1,7 @@
+python manage.py seed users --number=10
+python manage.py seed customers --number=10
+python manage.py seed products --number=10
+python manage.py seed stores --number=10
+python manage.py seed orders --number=10
+python manage.py seed payment --number=10
+python manage.py seed ads --number=10
