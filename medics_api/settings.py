@@ -101,7 +101,7 @@ WSGI_APPLICATION = 'medics_api.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'dawafaster', 
+        'NAME': 'kariakoo', 
         'USER': 'root',  
         'PASSWORD': '',  
         'HOST': 'localhost', 
@@ -123,6 +123,19 @@ DATABASES = {
 #     }
 # }
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv("MAIL_HOST", "smtp.googlemail.com")
+EMAIL_PORT = int(os.getenv("MAIL_PORT", 465))
+EMAIL_HOST_USER = os.getenv("MAIL_USERNAME")
+EMAIL_HOST_PASSWORD = os.getenv("MAIL_PASSWORD")
+
+# Choose encryption method
+MAIL_ENCRYPTION = os.getenv("MAIL_ENCRYPTION", "ssl").lower()
+EMAIL_USE_TLS = MAIL_ENCRYPTION == "tls"
+EMAIL_USE_SSL = MAIL_ENCRYPTION == "ssl"
+
+DEFAULT_FROM_EMAIL = os.getenv("MAIL_FROM_ADDRESS", "noreply@example.com")
+EMAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "Your App Name")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -195,11 +208,19 @@ GRAPHQL_JWT = {
     "JWT_ALLOW_REFRESH": True,
 }
 
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",'http://127.0.0.1:3000',
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True 
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+]
+
+
+CORS_ALLOW_CREDENTIALS = True
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -1,12 +1,11 @@
 import graphene
-from ..models import Vendor, ProductVendor, SponsorInstitutionVendor,ServiceProvider
+from ..models import Vendor, ProductVendor, SponsorInstitutionVendor
 from payment.models import PaymentGateway, PaymentTransaction, TransactionStatus
 from ..types.payment import PaymentResponseType
 from ..helpers.evmak_payment_helper import send_payment_request
 from ..inputs.vendor import FullVendorInput
-from ..helpers.sms_service import SMSService
-from ..helpers.email_service import EmailService
-
+from ..helpers.sms_service import SMSService  
+from ..helpers.email_service import  EmailService
 
 class RegisterFullVendor(graphene.Mutation):
     class Arguments:
@@ -19,7 +18,7 @@ class RegisterFullVendor(graphene.Mutation):
         vendor = Vendor.objects.create(
             fullname=input.fullname,
             email=input.email,
-            company_name=input.companyName,
+            company_name=input.company_name,
             tin_number=input.tinNumber,
             contact_person=input.contactPerson,
             phone=input.phone,
@@ -28,15 +27,15 @@ class RegisterFullVendor(graphene.Mutation):
 
         # Step 2: Get payment gateway
         try:
-            payment_gateway = PaymentGateway.objects.get(name__iexact=input.apiTo)
+            payment_gateway = PaymentGateway.objects.get(name__iexact=input.api_to)
         except PaymentGateway.DoesNotExist:
-            raise Exception(f"Payment gateway '{input.apiTo}' not found.")
+            raise Exception(f"Payment gateway '{input.api_to}' not found.")
 
         # Step 3: Create transaction
         transaction = PaymentTransaction.objects.create(
             gateway=payment_gateway,
             user=None,
-            payed_to=input.payedTo,  # Ensure this is defined in your GraphQL Input
+            payedTo=input.payedTo,  
             reference=f"VENDOR_REG_{vendor.id}",
             amount=input.amount,
             status=TransactionStatus.PENDING
@@ -46,39 +45,22 @@ class RegisterFullVendor(graphene.Mutation):
         if input.vendorType == "product":
             ProductVendor.objects.create(
                 vendor=vendor,
-                product_name=input.productName,
-                product_description=input.productDescription,
-                unit_price=input.unitPrice,
-                stock_quantity=input.stockQuantity,
+                product_name=input.product_name,
+                product_description=input.product_description,
+                unit_price=input.unit_price,
+                stock_quantity=input.stock_quantity,
             )
-
         elif input.vendorType == "sponsor":
             SponsorInstitutionVendor.objects.create(
                 vendor=vendor,
-                institution_name=input.institutionName,
+                institution_name=input.institution_name,
                 package=input.package,
             )
-
-        elif input.vendorType.lower() == "vendor":
-            ServiceProvider.objects.create(
-                vendor=vendor,
-                service_name=input.serviceName,
-                service_description=input.serviceDescription,
-                # hourly_rate=input.hourlyRate or None,
-                fixed_price=input.fixedPrice or None,
-                boothSize= input.boothSize,
-                powerNeeded= input.powerNeeded,
-                menu_description= input.menuDescription,
-                package= input.package,
-            )
-            vendor.save()
-
-        # You can extend with food/service vendors similarly
 
         # Step 5: Send payment request
         payment_response = send_payment_request(
             api_source="WEBHOSTTZ",
-            api_to=input.apiTo,
+            api_to=input.api_to,
             amount=input.amount,
             product=f"Vendor-{vendor.vendor_type}",
             callback="https://webhook.site/your-unique-callback-url",
@@ -90,28 +72,28 @@ class RegisterFullVendor(graphene.Mutation):
 
         transaction.response_data = payment_response
 
-        # Step 6: Process response and notify user
+        # Step 6: Process response and send SMS if successful
         if payment_response.get("response_code") == 200:
             transaction.status = TransactionStatus.SUCCESS
             transaction.save()
 
             # ✅ Send SMS
-            SMSService().send_sms(
+            sms = SMSService()
+            sms.send_sms(
                 msisdn=input.phone,
                 message=f"Asante kwa kufanya malipo ya {input.amount} TZS kwa usajili wa {vendor.vendor_type}. Ref: {transaction.reference}"
             )
 
-            # ✅ Send Email
+             # ✅ Send Email
             EmailService.send_email(
                 subject="Uthibitisho wa Malipo - Vendor Registration",
-                message=(
-                    f"Hongera {vendor.fullname},\n\n"
-                    f"Tumepokea malipo yako ya TZS {input.amount} kwa usajili kama {vendor.vendor_type}. "
-                    f"Namba ya rejea: {transaction.reference}\n\n"
-                    f"Asante kwa kushirikiana nasi."
-                ),
+                message=f"Hongera {vendor.fullname},\n\n"
+                        f"Tumepokea malipo yako ya TZS {input.amount} kwa usajili kama {vendor.vendor_type}. "
+                        f"Namba ya rejea: {transaction.reference}\n\n"
+                        f"Asante kwa kushirikiana nasi.",
                 recipient_email=input.email
             )
+
         else:
             transaction.status = TransactionStatus.FAILED
             transaction.save()

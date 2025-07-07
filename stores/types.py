@@ -23,12 +23,12 @@ class StoreProductType(DjangoObjectType):
             "id",
             "store",
             "product",
-            "price",
-            "original_price",
-            "stock_quantity",
-            "is_available",
-            "sku",
-            "updated_at",
+            # "price",
+            # "original_price",
+            # "stock_quantity",
+            # "is_available",
+            # "sku",
+            # "updated_at",
         )
 
 

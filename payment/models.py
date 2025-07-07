@@ -25,6 +25,7 @@ class TransactionStatus(models.TextChoices):
 
 
 class PaymentTransaction(models.Model):
+    payed_to = models.CharField(max_length=20)
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.PROTECT, related_name="transactions")
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     reference = models.CharField(max_length=100, unique=True, verbose_name=_("Transaction Reference"))
@@ -34,6 +35,13 @@ class PaymentTransaction(models.Model):
         max_length=20, choices=TransactionStatus.choices, default=TransactionStatus.PENDING
     )
     response_data = models.JSONField(null=True, blank=True, verbose_name=_("Gateway Response"))
+
+    # ✅ New fields from callback
+    result_type = models.BooleanField(null=True, blank=True, verbose_name=_("Result Type"))
+    transaction_id = models.CharField(max_length=100, null=True, blank=True, verbose_name=_("Transaction ID"))
+    gateway_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name=_("Gateway Amount"))
+    gateway_hash = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("Hash from Gateway"))
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

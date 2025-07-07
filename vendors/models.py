@@ -1,5 +1,5 @@
+
 from django.db import models
-from django.contrib.auth.models import User
 from django.core.validators import FileExtensionValidator
 
 class Vendor(models.Model):
@@ -7,9 +7,12 @@ class Vendor(models.Model):
         ('product', 'Product Vendor'),
         ('food', 'Food Vendor'),
         ('service', 'Service Provider'),
+        ('sponsor', 'Sponsor/Institution Vendor'),
     ]
-    
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    fullname = models.CharField(max_length=200, blank=True, null=True)  
+    email = models.EmailField(blank=True, null=True)
+    # password = models.CharField(max_length=128, blank=True, null=True)  # Store hashed or encrypted
     vendor_type = models.CharField(max_length=20, choices=VENDOR_TYPES)
     company_name = models.CharField(max_length=100)
     tin_number = models.CharField(max_length=20, blank=True, null=True)
@@ -27,7 +30,7 @@ class Vendor(models.Model):
 class ProductVendor(models.Model):
     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='product_vendor')
     product_name = models.CharField(max_length=100)
-    product_description = models.TextField()
+    product_description = models.TextField(blank=True, null=True)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     stock_quantity = models.PositiveIntegerField()
 
@@ -36,8 +39,10 @@ class ProductVendor(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(ProductVendor, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='product_images/',
-                            validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])])
+    image = models.ImageField(
+        upload_to='product_images/',
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])]
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -45,20 +50,32 @@ class ProductImage(models.Model):
 
 class FoodVendor(models.Model):
     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='food_vendor')
-    cuisine_type = models.CharField(max_length=50)
-    menu_description = models.TextField()
+    cuisine_type = models.CharField(max_length=50, blank=True, null=True)
+    menu_description = models.TextField(blank=True, null=True)
     has_vegetarian = models.BooleanField(default=False)
     has_vegan = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.cuisine_type} by {self.vendor.company_name}"
+        return f"{self.cuisine_type or 'Food'} by {self.vendor.company_name}"
 
 class ServiceProvider(models.Model):
     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='service_provider')
     service_name = models.CharField(max_length=100)
-    service_description = models.TextField()
+    service_description = models.TextField(blank=True, null=True)
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     fixed_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    boothSize = models.TextField(blank=True, null=True)
+    powerNeeded =models.BooleanField(default=False)
+    menu_description = models.TextField(blank=True, null=True)
+    package= models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.service_name} by {self.vendor.company_name}"
+
+class SponsorInstitutionVendor(models.Model):
+    vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='sponsor_vendor')
+    institution_name = models.CharField(max_length=100)
+    package = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.institution_name} sponsor for {self.vendor.company_name}"
