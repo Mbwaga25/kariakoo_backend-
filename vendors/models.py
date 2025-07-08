@@ -76,6 +76,17 @@ class SponsorInstitutionVendor(models.Model):
     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='sponsor_vendor')
     institution_name = models.CharField(max_length=100)
     package = models.CharField(max_length=100, blank=True, null=True)
+    partnershipInterest = models.CharField(max_length=100, blank=True, null=True)
+    orgRep = models.CharField(max_length=100, blank=True, null=True)
+    partnershipInterest = models.CharField(max_length=100, blank=True, null=True) 
+    
+    # ✅ ImageField instead of CharField
+    companyLogo = models.ImageField(
+        upload_to='sponsor_logos/',  # Folder inside MEDIA_ROOT
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
+        blank=True,
+        null=True
+    )
 
     def __str__(self):
         return f"{self.institution_name} sponsor for {self.vendor.company_name}"

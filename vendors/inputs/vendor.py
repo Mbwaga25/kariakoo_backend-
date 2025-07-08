@@ -1,4 +1,5 @@
 import graphene
+from graphene_file_upload.scalars import Upload
 class FullVendorInput(graphene.InputObjectType):
     fullname = graphene.String()
     email = graphene.String()
@@ -17,10 +18,15 @@ class FullVendorInput(graphene.InputObjectType):
     productDescription = graphene.String()
     unitPrice = graphene.Float()
     stockQuantity = graphene.Int()
+    productImage = graphene.List(Upload)
 
     # Sponsor
     institutionName = graphene.String()
     package = graphene.String()
+    partnershipInterest= graphene.String()
+    orgRep = graphene.String()
+    companyLogo = Upload()
+    partnershipInterest = graphene.String()
 
    # Service
     serviceName = graphene.String()

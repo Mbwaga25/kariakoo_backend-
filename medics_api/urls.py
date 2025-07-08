@@ -8,13 +8,13 @@ from django.views.decorators.csrf import csrf_exempt
 from graphene_django.views import GraphQLView
 from .schema import schema  # Your GraphQL schema
 from django.urls import path, include
+from graphene_file_upload.django import FileUploadGraphQLView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
     # GraphQL endpoint with CSRF disabled (for development or if using token auth)
-    path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),
-    path("payment/", include("payment.urls")),
+   path("graphql/", csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True, schema=schema))),
+   path("payment/", include("payment.urls")),
 
 ]
 
