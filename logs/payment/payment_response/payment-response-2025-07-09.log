@@ -1,0 +1,1 @@
+2025-07-09 13:31:36,090 - INFO - Transaction Ref: VENDOR-REG-23, Response: {'order_id': 'VENDOR-REG-23', 'amount': 1000, 'response_code': 200, 'response_desc': 'Success.'}

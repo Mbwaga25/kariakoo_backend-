@@ -8,16 +8,18 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from payment.models import PaymentTransaction, TransactionStatus
 
-LOG_BASE_DIR = os.path.join("log", "vendors", "callback")
+# Updated log directory path
+LOG_BASE_DIR = os.path.join("logs", "payment", "callback")
 
 def write_callback_log(reference: str, payload: dict):
     """
-    Save callback payloads to a daily log file
+    Save callback payloads to a daily log file in the format d-m-y-callback.log.
     """
     os.makedirs(LOG_BASE_DIR, exist_ok=True)
 
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    filename = f"transaction-{date_str}.log"
+    # Updated filename format to d-m-y-callback.log
+    date_str = datetime.now().strftime("%d-%m-%Y")
+    filename = f"{date_str}-callback.log"
     file_path = os.path.join(LOG_BASE_DIR, filename)
 
     with open(file_path, "a") as log_file:

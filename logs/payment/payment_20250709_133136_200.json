@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-07-09T13:31:36.088700",
+  "request": {
+    "api_source": "WEBHOSTTZ",
+    "api_to": "AirtelMoney",
+    "amount": 1000.0,
+    "product": "Vendor-Vendor",
+    "callback": "https://api.kariakofestival.co.tz/payment/callback/",
+    "hash": "ca1829ad34dc0d13ef2f15948121c743",
+    "user": "onevoice",
+    "mobileNo": "0693614908",
+    "reference": "VENDOR-REG-23"
+  },
+  "response": {
+    "order_id": "VENDOR-REG-23",
+    "amount": 1000,
+    "response_code": 200,
+    "response_desc": "Success."
+  },
+  "status": "success"
+}

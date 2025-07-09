@@ -28,6 +28,4 @@ class Command(BaseCommand):
         for _ in range(10):
             Product.objects.create(name=fake.word(), price=random.randint(10, 500))
 
-        # Add stores, orders, payment, ads similarly...
-
         self.stdout.write(self.style.SUCCESS('Seeding complete.'))
