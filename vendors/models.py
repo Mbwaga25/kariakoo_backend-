@@ -2,22 +2,28 @@
 from django.db import models
 from django.core.validators import FileExtensionValidator
 
+from django.db import models
+from django.core.validators import FileExtensionValidator
+
 class Vendor(models.Model):
     VENDOR_TYPES = [
         ('product', 'Product Vendor'),
-        ('food', 'Food Vendor'),
         ('service', 'Service Provider'),
         ('sponsor', 'Sponsor/Institution Vendor'),
     ]
 
-    fullname = models.CharField(max_length=200, blank=True, null=True)  
+    fullname = models.CharField(max_length=200, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
-    # password = models.CharField(max_length=128, blank=True, null=True)  # Store hashed or encrypted
     vendor_type = models.CharField(max_length=20, choices=VENDOR_TYPES)
     company_name = models.CharField(max_length=100)
     tin_number = models.CharField(max_length=20, blank=True, null=True)
     contact_person = models.CharField(max_length=100)
     phone = models.CharField(max_length=20)
+
+    # ✅ New fields for business type and category
+    business_category = models.CharField(max_length=100, blank=True, null=True)
+    retail_wholesale = models.JSONField(blank=True, null=True)  # ["Retail", "Wholesale"]
+
     is_approved = models.BooleanField(default=False)
     registration_date = models.DateTimeField(auto_now_add=True)
 

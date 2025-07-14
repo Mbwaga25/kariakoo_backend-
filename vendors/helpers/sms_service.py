@@ -1,36 +1,33 @@
+import os
 import logging
 import requests
 
-logger = logging.getLogger(__name__)
+BIRQ_API_KEY = os.getenv("BIRQ_API_KEY", "")
+BIRQ_SENDER_ID = os.getenv("BIRQ_SENDER_ID", "")
 
-class SMSService:
-    def __init__(self):
-        self.user = 'osbornexhb'
-        self.password = 'h1umhybu'
-        self.sender_id = 'UNT Solut'
-        self.country_code = '255'
-        self.api_url = 'http://mshastra.com/sendurl.aspx'
+logger = logging.getLogger("sms_service")
 
-    def send_sms(self, msisdn: str, message: str):
-        # Format phone number to international if starts with 0
-        if msisdn.startswith('0'):
-            msisdn = self.country_code + msisdn[1:]
+def send_briq_sms(msisdn: str, message: str):
+    url = "https://karibu.briq.tz/v1/message/send-instant"
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": BIRQ_API_KEY
+    }
 
-        params = {
-            'user': self.user,
-            'pwd': self.password,
-            'senderid': self.sender_id,
-            'CountryCode': self.country_code,
-            'mobileno': msisdn,
-            'msgtext': message,
-        }
+    if msisdn.startswith("0"):
+        msisdn = "255" + msisdn[1:]
 
-        try:
-            response = requests.get(self.api_url, params=params)
+    payload = {
+        "content": message,
+        "recipients": [msisdn],
+        "sender_id": BIRQ_SENDER_ID
+    }
 
-            if response.ok:
-                logger.info(f'SMS sent successfully to {msisdn}')
-            else:
-                logger.error(f'Failed to send SMS. Response: {response.text}')
-        except Exception as e:
-            logger.error(f'Exception sending SMS to {msisdn}: {str(e)}')
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        if response.ok:
+            logger.info(f"Briq SMS sent successfully to {msisdn}")
+        else:
+            logger.error(f"Failed to send Briq SMS to {msisdn}. Response: {response.text}")
+    except Exception as e:
+        logger.error(f"Exception sending Briq SMS to {msisdn}: {str(e)}")

@@ -8,23 +8,41 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from payment.models import PaymentTransaction, TransactionStatus
 
-# Updated log directory path
-LOG_BASE_DIR = os.path.join("logs", "payment", "callback")
 
-def write_callback_log(reference: str, payload: dict):
+def setup_payment_logger():
+    """Initializes and configures the payment logger."""
+    log_directory = "logs/payment/callback"
+    os.makedirs(log_directory, exist_ok=True)
+    log_file = os.path.join(log_directory, f"payment-response-{datetime.now().strftime('%Y-%m-%d')}.log")
+
+    logger = logging.getLogger('payment_logger')
+    logger.setLevel(logging.INFO)
+
+    if not logger.handlers:
+        handler = logging.FileHandler(log_file)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    return logger
+
+
+payment_logger = setup_payment_logger()
+
+
+def log_callback_event(reference: str, payload: dict, level: str = "info"):
     """
-    Save callback payloads to a daily log file in the format d-m-y-callback.log.
+    Log a callback event using the configured logger.
     """
-    os.makedirs(LOG_BASE_DIR, exist_ok=True)
-
-    # Updated filename format to d-m-y-callback.log
-    date_str = datetime.now().strftime("%d-%m-%Y")
-    filename = f"{date_str}-callback.log"
-    file_path = os.path.join(LOG_BASE_DIR, filename)
-
-    with open(file_path, "a") as log_file:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_file.write(f"[{timestamp}] REF: {reference} - PAYLOAD: {json.dumps(payload)}\n")
+    message = f"REF: {reference} - PAYLOAD: {json.dumps(payload)}"
+    if level == "info":
+        payment_logger.info(message)
+    elif level == "error":
+        payment_logger.error(message)
+    elif level == "warning":
+        payment_logger.warning(message)
+    else:
+        payment_logger.debug(message)
 
 
 @csrf_exempt
@@ -46,12 +64,12 @@ def payment_callback(request):
         try:
             transaction = PaymentTransaction.objects.get(reference=reference)
         except PaymentTransaction.DoesNotExist:
-            write_callback_log(reference or "unknown", {"error": "Transaction not found", "data": data})
+            log_callback_event(reference or "unknown", {"error": "Transaction not found", "data": data}, level="error")
             return JsonResponse({"message": "Transaction not found."}, status=404)
 
         # Normalize status
         normalized_status = status.strip().lower()
-        if normalized_status == "sucess":  # fix typo from gateway
+        if normalized_status == "sucess":  # typo fix from gateway
             normalized_status = TransactionStatus.SUCCESS
         elif normalized_status == "failed":
             normalized_status = TransactionStatus.FAILED
@@ -67,15 +85,15 @@ def payment_callback(request):
         transaction.response_data = data
         transaction.save()
 
-        # Log for traceability
-        write_callback_log(reference, data)
+        # Log success
+        log_callback_event(reference, data)
 
         return JsonResponse({"message": "Transaction updated successfully."})
 
     except json.JSONDecodeError:
-        write_callback_log("invalid-json", {"error": "Invalid JSON", "body": request.body.decode("utf-8")})
+        log_callback_event("invalid-json", {"error": "Invalid JSON", "body": request.body.decode("utf-8")}, level="error")
         return JsonResponse({"message": "Invalid JSON."}, status=400)
 
     except Exception as e:
-        write_callback_log("internal-error", {"error": str(e)})
+        log_callback_event("internal-error", {"error": str(e)}, level="error")
         return JsonResponse({"message": "Internal server error."}, status=500)

@@ -23,27 +23,93 @@ class TransactionStatus(models.TextChoices):
     FAILED = "failed", _("Failed")
     CANCELLED = "cancelled", _("Cancelled")
 
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from payment.models import PaymentGateway
+from vendors.models import Vendor
+
+
 
 class PaymentTransaction(models.Model):
-    payed_to = models.CharField(max_length=20)
-    gateway = models.ForeignKey(PaymentGateway, on_delete=models.PROTECT, related_name="transactions")
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    reference = models.CharField(max_length=100, unique=True, verbose_name=_("Transaction Reference"))
-    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("Amount"))
-    currency = models.CharField(max_length=10, default="TZS")
-    status = models.CharField(
-        max_length=20, choices=TransactionStatus.choices, default=TransactionStatus.PENDING
+    vendor = models.ForeignKey(
+        Vendor,
+        on_delete=models.CASCADE,
+        related_name='transactions',
+        null=True,
+        blank=True,
+        verbose_name=_("Vendor")
     )
-    response_data = models.JSONField(null=True, blank=True, verbose_name=_("Gateway Response"))
 
-    # ✅ New fields from callback
-    result_type = models.BooleanField(null=True, blank=True, verbose_name=_("Result Type"))
-    transaction_id = models.CharField(max_length=100, null=True, blank=True, verbose_name=_("Transaction ID"))
-    gateway_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name=_("Gateway Amount"))
-    gateway_hash = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("Hash from Gateway"))
+    payed_to = models.CharField(
+        max_length=20,
+        verbose_name=_("Payed To")
+    )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    gateway = models.ForeignKey(
+        PaymentGateway,
+        on_delete=models.PROTECT,
+        related_name="transactions",
+        verbose_name=_("Payment Gateway")
+    )
+
+    reference = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name=_("Transaction Reference")
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name=_("Transaction Amount")
+    )
+
+    status = models.CharField(max_length=20)
+
+    response_data = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_("Gateway Response")
+    )
+
+    # Fields populated by callback
+    result_type = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name=_("Result Type")
+    )
+
+    transaction_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name=_("Transaction ID")
+    )
+
+    gateway_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("Gateway Amount")
+    )
+
+    gateway_hash = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name=_("Hash from Gateway")
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("Created At")
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_("Updated At")
+    )
 
     def __str__(self):
         return f"{self.reference} ({self.status})"

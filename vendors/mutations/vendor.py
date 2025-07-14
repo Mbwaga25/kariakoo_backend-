@@ -11,35 +11,29 @@ from payment.models import PaymentGateway, PaymentTransaction, TransactionStatus
 from ..types.payment import PaymentResponseType
 from ..helpers.evmak_payment_helper import send_payment_request
 from ..inputs.vendor import FullVendorInput
-from ..helpers.sms_service import SMSService
 from ..helpers.email_service import EmailService
+from ..helpers.sms_service import send_briq_sms
 
-# --- Helper for Image Conversion ---
+PAYMENT_MODE = os.getenv("PAYMENT_MODE", "sandbox")
+
 def convert_to_webp(image_file):
-    """Converts an uploaded image to WebP format."""
     try:
         img = Image.open(image_file)
         buffer = BytesIO()
         img.save(buffer, format='WEBP')
-        # Create a new Django ContentFile
         return ContentFile(buffer.getvalue(), name=f"{os.path.splitext(image_file.name)[0]}.webp")
     except Exception as e:
-        # Handle potential errors during conversion
         print(f"Error converting image to WebP: {e}")
         return image_file
 
-# --- Setup for Structured Logging ---
 def setup_payment_logger():
-    """Initializes and configures the payment logger."""
     log_directory = "logs/payment/payment_response"
-    # This line creates the directory if it doesn't exist.
-    os.makedirs(log_directory, exist_ok=True) 
+    os.makedirs(log_directory, exist_ok=True)
     log_file = os.path.join(log_directory, f"payment-response-{datetime.now().strftime('%Y-%m-%d')}.log")
 
     logger = logging.getLogger('payment_logger')
     logger.setLevel(logging.INFO)
 
-    # Prevents duplicate log entries
     if not logger.handlers:
         handler = logging.FileHandler(log_file)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -50,7 +44,6 @@ def setup_payment_logger():
 
 payment_logger = setup_payment_logger()
 
-
 class RegisterFullVendor(graphene.Mutation):
     class Arguments:
         input = FullVendorInput(required=True)
@@ -58,7 +51,6 @@ class RegisterFullVendor(graphene.Mutation):
     Output = PaymentResponseType
 
     def mutate(self, info, input):
-        # Step 1: Create Vendor
         vendor = Vendor.objects.create(
             fullname=input.fullname,
             email=input.email,
@@ -67,9 +59,10 @@ class RegisterFullVendor(graphene.Mutation):
             contact_person=input.contactPerson,
             phone=input.phone,
             vendor_type=input.vendorType,
+            retail_wholesale=input.retailWholesale,
+            business_category=input.businessCategory,
         )
 
-        # Step 2: Handle different vendor subtypes
         if input.vendorType.lower() == "product":
             product_vendor = ProductVendor.objects.create(
                 vendor=vendor,
@@ -86,9 +79,8 @@ class RegisterFullVendor(graphene.Mutation):
                         product=product_vendor,
                         image=webp_image
                     )
-            
-            # --- Bypass payment and send notifications ---
-            SMSService().send_sms(
+
+            send_briq_sms(
                 msisdn=input.phone,
                 message=f"Thank you for registering as a {vendor.vendor_type}. We have received your details."
             )
@@ -114,80 +106,114 @@ class RegisterFullVendor(graphene.Mutation):
                 orgRep=input.orgRep,
                 companyLogo=input.companyLogo
             )
+
+            send_briq_sms(
+                msisdn=input.phone,
+                message=f"Thank you for registering as a {vendor.vendor_type}. We have received your details."
+            )
+            EmailService.send_email(
+                subject="Registration Confirmation",
+                message=f"Hello {vendor.fullname},\n\nWe have successfully received your registration as a {vendor.vendor_type}.",
+                recipient_email=input.email
+            )
+
             return PaymentResponseType(
-                order_id="SPONSOR-NO-PAYMENT",
+                order_id=f"SPONSOR-NO-PAYMENT-{vendor.id}",
                 amount=0,
                 response_code=200,
                 response_desc="Sponsor registration complete. No payment required."
             )
 
         elif input.vendorType.lower() == "vendor":
-            ServiceProvider.objects.create(
-                vendor=vendor,
-                service_name=input.serviceName,
-                service_description=input.serviceDescription,
-                fixed_price=input.fixedPrice or None,
-                boothSize=input.boothSize,
-                powerNeeded=input.powerNeeded,
-                menu_description=input.menuDescription,
-                package=input.package,
+            try:
+                payment_gateway = PaymentGateway.objects.get(name__iexact=input.apiTo)
+            except PaymentGateway.DoesNotExist:
+                raise Exception(f"Payment gateway '{input.apiTo}' not found.")
+
+            transaction = PaymentTransaction.objects.create(
+                gateway=payment_gateway,
+                user=None,
+                payed_to=input.payedTo,
+                reference=f"VENDOR-REG-{vendor.id}",
+                amount=input.amount,
+                status=TransactionStatus.PENDING
             )
 
-        # --- Steps 3-6 are now only for "vendor" type that requires payment ---
-        try:
-            payment_gateway = PaymentGateway.objects.get(name__iexact=input.apiTo)
-        except PaymentGateway.DoesNotExist:
-            raise Exception(f"Payment gateway '{input.apiTo}' not found.")
+            try:
+                callback_url = "https://api.zamundaholdings.co.tz/payment/callback/" if PAYMENT_MODE == "live" else "https://test.zamundaholdings.co.tz/payment/callback/"
+                payment_response = send_payment_request(
+                    api_source="WEBHOSTTZ",
+                    api_to=input.apiTo,
+                    amount=input.amount,
+                    product=f"Vendor-{vendor.vendor_type}",
+                    callback=callback_url,
+                    user="onevoice",
+                    mobileNo=input.payedTo,
+                    reference=transaction.reference,
+                    mode=PAYMENT_MODE
+                )
+                payment_logger.info(f"Transaction Ref: {transaction.reference}, Response: {payment_response}")
+            except Exception as e:
+                payment_logger.error(f"Payment request failed: {e}")
+                transaction.status = TransactionStatus.FAILED
+                transaction.save()
+                return PaymentResponseType(
+                    order_id=None,
+                    amount=input.amount,
+                    response_code=500,
+                    response_desc="Payment request failed."
+                )
 
-        transaction = PaymentTransaction.objects.create(
-            gateway=payment_gateway,
-            user=None,
-            payed_to=input.payedTo,
-            reference=f"VENDOR-REG-{vendor.id}",
-            amount=input.amount,
-            status=TransactionStatus.PENDING
-        )
+            if payment_response.get("response_code") == 200:
+                transaction.status = TransactionStatus.SUCCESS
+                transaction.save()
 
-        payment_response = send_payment_request(
-            api_source="WEBHOSTTZ",
-            api_to=input.apiTo,
-            amount=input.amount,
-            product=f"Vendor-{vendor.vendor_type}",
-            callback="https://api.kariakofestival.co.tz/payment/callback/",
-            user="onevoice",
-            mobileNo=input.payedTo,
-            reference=transaction.reference,
-        )
-        
-        # Log the payment response
-        payment_logger.info(f"Transaction Ref: {transaction.reference}, Response: {payment_response}")
-        
-        transaction.response_data = payment_response
+                ServiceProvider.objects.create(
+                    vendor=vendor,
+                    service_name=input.serviceName,
+                    service_description=input.serviceDescription,
+                    fixed_price=input.fixedPrice or None,
+                    boothSize=input.boothSize,
+                    powerNeeded=input.powerNeeded,
+                    menu_description=input.menuDescription,
+                    package=input.package,
+                )
 
-        if payment_response.get("response_code") == 200:
-            transaction.status = TransactionStatus.SUCCESS
-            SMSService().send_sms(
-                msisdn=input.phone,
-                message=f"Asante kwa kufanya malipo ya {input.amount} TZS kwa usajili wa {vendor.vendor_type}. Ref: {transaction.reference}"
-            )
-            EmailService.send_email(
-                subject="Uthibitisho wa Malipo - Vendor Registration",
-                message=(
-                    f"Hongera {vendor.fullname},\n\n"
-                    f"Tumepokea malipo yako ya TZS {input.amount} kwa usajili kama {vendor.vendor_type}. "
-                    f"Namba ya rejea: {transaction.reference}\n\n"
-                    f"Asante kwa kushirikiana nasi."
-                ),
-                recipient_email=input.email
-            )
+                send_briq_sms(
+                    msisdn=input.phone,
+                    message=f"Asante kwa kufanya malipo ya {input.amount} TZS kwa usajili wa {vendor.vendor_type}. Ref: {transaction.reference}"
+                )
+                EmailService.send_email(
+                    subject="Uthibitisho wa Malipo - Vendor Registration",
+                    message=(
+                        f"Hongera {vendor.fullname},\n\n"
+                        f"Tumepokea malipo yako ya TZS {input.amount} kwa usajili kama {vendor.vendor_type}. "
+                        f"Namba ya rejea: {transaction.reference}\n\n"
+                        f"Asante kwa kushirikiana nasi."
+                    ),
+                    recipient_email=input.email
+                )
+
+                return PaymentResponseType(
+                    order_id=payment_response.get("order_id"),
+                    amount=payment_response.get("amount"),
+                    response_code=200,
+                    response_desc="Vendor registered and payment successful."
+                )
+            else:
+                transaction.status = TransactionStatus.FAILED
+                transaction.save()
+                return PaymentResponseType(
+                    order_id=None,
+                    amount=input.amount,
+                    response_code=payment_response.get("response_code", 403),
+                    response_desc="Payment failed. Vendor registration not completed."
+                )
+
         else:
-            transaction.status = TransactionStatus.FAILED
-        
-        transaction.save()
-
-        return PaymentResponseType(
-            order_id=payment_response.get("order_id"),
-            amount=payment_response.get("amount"),
-            response_code=payment_response.get("response_code", 403),
-            response_desc=payment_response.get("response_desc", "Unknown error occurred")
-        )
+            return PaymentResponseType(
+                order_id=None,
+                amount=0,
+                response_code=400,
+                response_desc="Invalid vendor type provided."
+            )
