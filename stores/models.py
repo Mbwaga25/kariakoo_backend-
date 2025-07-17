@@ -72,7 +72,14 @@ class StoreProduct(models.Model):
         on_delete=models.CASCADE,
         related_name='store_products'
     )
-    product = models.ForeignKey(Product, related_name='store_listings', on_delete=models.CASCADE)
+    # product = models.ForeignKey(Product, related_name='store_listings', on_delete=models.CASCADE)
+      # ✅ Lazy import with string app.model reference
+    product = models.ForeignKey(
+        'products.Product',
+        related_name='store_listings',
+        on_delete=models.CASCADE
+    )
+
     product_variant = models.ForeignKey(
         ProductVariant,
         on_delete=models.CASCADE,

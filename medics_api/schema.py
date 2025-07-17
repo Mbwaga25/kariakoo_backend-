@@ -12,6 +12,7 @@ from vendors.schema import VendorsQuery, VendorsMutation
 from payment.schema import  PaymentMutation,PaymentQuery
 import order_call.graphql.mutations 
 import order_call.graphql.queries
+from dashboard.DashboardQuery import DashboardQuery
 
 class Query(
     UsersQuery,
@@ -23,6 +24,7 @@ class Query(
     AdsQuery,
     PaymentQuery,
     order_call.graphql.queries.Query,
+    DashboardQuery,
     graphene.ObjectType,
 ):
     """Root query that combines queries from all applications."""

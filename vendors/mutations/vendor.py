@@ -132,12 +132,53 @@ class RegisterFullVendor(graphene.Mutation):
 
             transaction = PaymentTransaction.objects.create(
                 gateway=payment_gateway,
-                user=None,
+                # user=None,
                 payed_to=input.payedTo,
                 reference=f"VENDOR-REG-{vendor.id}",
                 amount=input.amount,
                 status=TransactionStatus.PENDING
             )
+
+            if input.apiTo.lower() == "nmb":
+                if input.paymentReceipt:
+                    transaction.receipt.save(
+                        f"{transaction.reference}_receipt.webp",
+                        convert_to_webp(input.paymentReceipt)
+                    )
+
+                ServiceProvider.objects.create(
+                    vendor=vendor,
+                    service_name=input.serviceName,
+                    service_description=input.serviceDescription,
+                    fixed_price=input.fixedPrice or None,
+                    boothSize=input.boothSize,
+                    powerNeeded=input.powerNeeded,
+                    menu_description=input.menuDescription,
+                    package=input.package,
+                )
+
+                send_briq_sms(
+                    msisdn=input.phone,
+                    message=f"Tumepokea maombi ya usajili wa {vendor.vendor_type}. Tafadhali wasilisha stakabadhi ya malipo kwa uthibitisho."
+                )
+                EmailService.send_email(
+                    subject="Usajili wa Vendor - Muda wa Kukamilisha Malipo",
+                    message=(
+                        f"Hongera {vendor.fullname},\n\n"
+                        f"Tumepokea usajili wako wa {vendor.vendor_type}. "
+                        f"Tafadhali wasilisha stakabadhi ya malipo kwa uthibitisho. "
+                        f"Namba ya Rejea: {transaction.reference}\n\n"
+                        f"Asante kwa kushirikiana nasi."
+                    ),
+                    recipient_email=input.email
+                )
+
+                return PaymentResponseType(
+                    order_id=f"VENDOR-NMB-MANUAL-{vendor.id}",
+                    amount=input.amount,
+                    response_code=200,
+                    response_desc="Vendor registered successfully. Awaiting manual payment verification."
+                )
 
             try:
                 callback_url = "https://api.zamundaholdings.co.tz/payment/callback/" if PAYMENT_MODE == "live" else "https://test.zamundaholdings.co.tz/payment/callback/"

@@ -7,6 +7,7 @@ User = get_user_model()
 class PaymentGateway(models.Model):
     name = models.CharField(max_length=100, verbose_name=_("Gateway Name"))
     is_active = models.BooleanField(default=True)
+
     credentials = models.JSONField(null=True, blank=True, verbose_name=_("Credentials"))
 
     def __str__(self):
@@ -100,11 +101,8 @@ class PaymentTransaction(models.Model):
         blank=True,
         verbose_name=_("Hash from Gateway")
     )
+    receipt = models.FileField(upload_to="payment_receipts/", null=True, blank=True)
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_("Created At")
-    )
 
     updated_at = models.DateTimeField(
         auto_now=True,

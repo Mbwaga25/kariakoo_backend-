@@ -24,6 +24,7 @@ class FullVendorInput(graphene.InputObjectType):
     unitPrice = graphene.Float()
     stockQuantity = graphene.Int()
     productImage = graphene.List(Upload)
+    paymentReceipt=graphene.List(Upload)
 
     # ✅ Sponsor Fields
     institutionName = graphene.String()

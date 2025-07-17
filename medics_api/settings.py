@@ -7,6 +7,7 @@ pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 env = environ.Env(DEBUG=(bool, False))
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
@@ -35,7 +36,8 @@ INSTALLED_APPS = [
     'payment',
     'ads',
     'order_call',
-    'vendors'
+    'vendors',
+    'dashboard',
 ]
 
 MIDDLEWARE = [

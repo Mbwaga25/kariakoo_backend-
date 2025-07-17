@@ -35,6 +35,7 @@ class Vendor(models.Model):
 
 class ProductVendor(models.Model):
     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='product_vendor')
+    status = models.CharField(max_length=50, default='PENDING')
     product_name = models.CharField(max_length=100)
     product_description = models.TextField(blank=True, null=True)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -80,6 +81,7 @@ class ServiceProvider(models.Model):
 
 class SponsorInstitutionVendor(models.Model):
     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='sponsor_vendor')
+    status = models.CharField(max_length=50, default='ON_PROCESSING')
     institution_name = models.CharField(max_length=100)
     package = models.CharField(max_length=100, blank=True, null=True)
     partnershipInterest = models.CharField(max_length=100, blank=True, null=True)
